@@ -10,30 +10,39 @@ export function summaryLine(r: Result): string {
   return `${s.manifests} manifest place(s) checked: ${s.covered} covered, ${s.coveredViaWorkspace} via workspace, ${s.excluded} excluded by exclude-paths, ${s.uncovered} uncovered${s.optedOut ? `, ${s.optedOut} in ecosystems without any entry` : ''}${s.noDependencies ? `, ${s.noDependencies} without dependencies (ignored)` : ''}; ${s.entries} updates entries. ${count('error')} error, ${count('warning')} warning, ${count('info')} info.`;
 }
 
+function prLine(r: Result): string {
+  const p = r.pr;
+  if (!p) return '';
+  const bits = [`${r.findings.length} new`, `${p.existing} existing and not shown`, `${p.resolved} resolved`];
+  return `Compared with ${p.base}: ${bits.join(', ')}.`;
+}
+
 export function renderText(r: Full): string {
   const out: string[] = [];
-  if (r.findings.length === 0) out.push('No gaps found.');
+  if (r.findings.length === 0) out.push(r.pr ? 'No new gaps introduced.' : 'No gaps found.');
   for (const f of r.findings) {
     const loc = f.line ? `${f.file}:${f.line}` : f.file;
     out.push(`${ICON[f.severity]}  ${f.rule.padEnd(20)}  ${f.message}\n           ${loc}`);
   }
   if (r.suggestion) out.push('', r.configFile ? `Add under updates: in ${r.configFile}` : 'Suggested .github/dependabot.yml', r.suggestion);
-  out.push('', summaryLine(r));
+  out.push('', r.pr ? prLine(r) : summaryLine(r));
   return out.join('\n') + '\n';
 }
 
 export function renderMarkdown(r: Full): string {
-  const out = ['## dependabot-gaps', '', summaryLine(r), ''];
+  const out = [r.pr ? '## dependabot-gaps: gaps this pull request introduces' : '## dependabot-gaps', ''];
+  if (r.pr) out.push(prLine(r), '');
+  else out.push(summaryLine(r), '');
   if (r.findings.length > 0) {
     out.push('| Severity | Rule | Where | Message |', '|---|---|---|---|');
     for (const f of r.findings) out.push(`| ${f.severity} | \`${f.rule}\` | \`${f.line ? `${f.file}:${f.line}` : f.file}\` | ${f.message.replace(/\|/g, '\\|')} |`);
-  } else out.push('No gaps found.');
+  } else out.push(r.pr ? 'No new gaps introduced. :white_check_mark:' : 'No gaps found.');
   if (r.suggestion) out.push('', '<details><summary>Entries to add</summary>', '', '```yaml', ...(r.configFile ? ['updates:'] : []), r.suggestion, '```', '', '</details>');
   return out.join('\n') + '\n';
 }
 
 export function renderJson(r: Full): string {
-  return JSON.stringify({ configFile: r.configFile ?? null, summary: r.summary, findings: r.findings, suggestion: r.suggestion ?? null }, null, 2) + '\n';
+  return JSON.stringify({ configFile: r.configFile ?? null, ...(r.pr ? { pr: r.pr } : {}), summary: r.summary, findings: r.findings, suggestion: r.suggestion ?? null }, null, 2) + '\n';
 }
 
 export function renderGithub(r: Result): string {

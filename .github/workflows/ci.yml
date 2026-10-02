@@ -149,3 +149,33 @@ jobs:
       - uses: cosmichackerx/node24-ready@v0.2.0
         with:
           path: .github action.yml
+
+  comment-selftest:
+    name: sticky comment (same-repo pull requests)
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: First run creates the comment (PR mode, base picked up from the event)
+        uses: ./
+        with:
+          comment: "true"
+          summary: "false"
+      - name: Second run updates the same comment
+        uses: ./
+        with:
+          comment: "true"
+          summary: "false"
+      - name: Exactly one sticky comment exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          n="$(gh api "repos/$GITHUB_REPOSITORY/issues/${{ github.event.pull_request.number }}/comments" --paginate --jq '[.[] | select(.body | startswith("<!-- dependabot-gaps:sticky -->"))] | length' | awk '{s+=$1} END{print s+0}')"
+          echo "sticky comments: $n"
+          test "$n" = "1"
