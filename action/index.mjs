@@ -7492,7 +7492,7 @@ var KNOWN_ECOSYSTEMS = [
   "uv",
   "vcpkg"
 ];
-var LOW_PRIORITY = /(^|\/)(tests?|__tests__|testdata|testing|fixtures?|examples?|samples?|demos?|docs?|e2e|benchmarks?|templates?|playground|sandbox|spec)(\/|$)/i;
+var LOW_PRIORITY = /(^|\/)[^/]*(test|fixture|example|sample|demo|e2e|benchmark|playground|sandbox|testdata)[^/]*(\/|$)|(^|\/)(docs?|templates?|spec)(\/|$)/i;
 var RULES = [
   { test: (b) => b === "package.json", ecosystems: ["npm", "bun"] },
   { test: (b, p) => /^requirements([-_.].*)?\.(txt|in)$/i.test(b) || /(^|\/)requirements?\/[^/]+\.(txt|in)$/i.test(p), ecosystems: ["pip", "uv"] },
@@ -7678,11 +7678,24 @@ function workspaceMembers(root, source, all) {
       };
       return rel(list("members"), list("exclude"));
     }
+    if (eco === "pip" && base === "pyproject.toml") {
+      const sec = /^\[tool\.uv\.workspace\]\s*$([\s\S]*?)(?=^\[|(?![\s\S]))/m.exec(text);
+      if (!sec) return [];
+      const list = (key) => {
+        const m = new RegExp(`^\\s*${key}\\s*=\\s*\\[([\\s\\S]*?)\\]`, "m").exec(sec[1]);
+        return m ? [...m[1].matchAll(/["']([^"']+)["']/g)].map((x) => x[1]) : [];
+      };
+      return rel(list("members"), list("exclude"));
+    }
     if (eco === "maven") {
       const mods = [...text.matchAll(/<module>\s*([^<\s]+)\s*<\/module>/g)].map((x) => x[1]);
       return mods.length ? rel(mods.map((x) => x.replace(/\/pom\.xml$/, ""))) : [];
     }
     if (eco === "gradle" && /^settings\.gradle(\.kts)?$/.test(base)) {
+      const sub = all.filter((m) => m.ecosystems[0] === "gradle" && m.dir !== root.dir && (root.dir === "" || m.dir.startsWith(root.dir + "/")));
+      const own = new Set(sub.filter((m) => /^settings\.gradle/.test(m.path.slice(m.path.lastIndexOf("/") + 1))).map((m) => m.dir));
+      const members = sub.filter((m) => ![...own].some((d) => m.dir === d || m.dir.startsWith(d + "/")));
+      if (members.length > 0) return members;
       const names = [];
       for (const inc of text.matchAll(/\binclude\s*\(?([^\n)]*)/g)) {
         for (const q of inc[1].matchAll(/["']:?([^"']+)["']/g)) names.push(q[1].replace(/:/g, "/"));
@@ -7736,7 +7749,7 @@ function analyze(source, opts = {}) {
   const everything = classifyAll(files, true);
   const considered = classifyAll(files, opts.includeVendored ?? false);
   const manifests = considered.filter((m) => !isIgnored(m.path));
-  const summary = { manifests: manifests.length, covered: 0, coveredViaWorkspace: 0, excluded: 0, ignored: considered.length - manifests.length, uncovered: 0, entries: 0 };
+  const summary = { manifests: manifests.length, covered: 0, coveredViaWorkspace: 0, excluded: 0, ignored: considered.length - manifests.length, uncovered: 0, optedOut: 0, noDependencies: 0, entries: 0 };
   const findings = [];
   const configFile = CONFIG_PATHS.find((p) => fileSet.has(p));
   if (!configFile) {
@@ -7794,14 +7807,25 @@ ${renderEntries(gaps2)}`;
   const gaps = [];
   for (const m of manifests) {
     const d = direct.get(m.path);
+    if (d === void 0 && !via.has(m.path) && declaresNothing(m, source)) {
+      summary.noDependencies++;
+      continue;
+    }
     if (d === "covered") summary.covered++;
     else if (d === "excluded") summary.excluded++;
     else if (via.has(m.path)) summary.coveredViaWorkspace++;
     else gaps.push(m);
   }
   summary.uncovered = gaps.length;
+  const configured = new Set(entries.map((e) => e.ecosystem));
+  const optedOut = /* @__PURE__ */ new Map();
   const byPlace = /* @__PURE__ */ new Map();
   for (const g of gaps) {
+    if (!opts.allEcosystems && !g.ecosystems.some((e) => configured.has(e))) {
+      const eco = primaryEcosystem(g, fileSet);
+      optedOut.set(eco, [...optedOut.get(eco) ?? [], g]);
+      continue;
+    }
     const key = `${primaryEcosystem(g, fileSet)}\0${g.dir}\0${g.altDirs ? "w" : ""}`;
     byPlace.set(key, [...byPlace.get(key) ?? [], g]);
   }
@@ -7822,6 +7846,18 @@ ${renderEntries(gaps2)}`;
     });
     if (!low) suggestionGaps.push({ ecosystem: eco, dir });
   }
+  for (const ms of optedOut.values()) summary.optedOut += ms.length;
+  summary.uncovered -= summary.optedOut;
+  for (const [eco, ms] of optedOut) {
+    const places = [...new Set(ms.map((m) => display(m.dir)))].sort();
+    findings.push({
+      rule: "unconfigured-ecosystem",
+      severity: "info",
+      file: configFile,
+      message: `${eco}: ${ms.length} manifest(s) in ${places.length} place(s) (${places.slice(0, 3).join(", ")}${places.length > 3 ? ", ..." : ""}) and no ${eco} entry at all: deliberate opt-out? (--all-ecosystems reports them as gaps)`,
+      ecosystem: eco
+    });
+  }
   const allByEco = /* @__PURE__ */ new Map();
   for (const m of everything) for (const e of m.ecosystems) for (const d of [m.dir, ...m.altDirs ?? []]) allByEco.set(e, (allByEco.get(e) ?? /* @__PURE__ */ new Set()).add(d));
   for (const e of entries) {
@@ -7834,7 +7870,7 @@ ${renderEntries(gaps2)}`;
           severity: "warning",
           file: configFile,
           line: e.line,
-          message: `updates[${e.index}] ${e.ecosystem}: ${isGlob(p) ? "pattern" : "directory"} "${p}" matches no directory with a ${e.ecosystem} manifest`,
+          message: `updates[${e.index}] ${e.ecosystem}: ${isGlob(p) ? "pattern" : "directory"} "${p}" matches no directory with a ${e.ecosystem} manifest${/(^|\/)\*\*$/.test(p) ? " (a trailing `**` without `/` behaves like `*` in Ruby Dir.glob; use `/**/*` for all depths)" : ""}`,
           ecosystem: e.ecosystem,
           directory: p
         });
@@ -7863,6 +7899,26 @@ ${renderEntries(gaps2)}`;
   const suggestion = suggestionGaps.length ? renderEntries(suggestionGaps) : void 0;
   return { configFile, findings: sort(findings), summary, suggestion };
 }
+function declaresNothing(m, source) {
+  const base = m.path.slice(m.path.lastIndexOf("/") + 1);
+  const isProj = /\.(cs|fs|vb)proj$/i.test(base);
+  if (!["package.json", "composer.json", "Cargo.toml", "pyproject.toml"].includes(base) && !isProj) return false;
+  const text = source.read(m.path);
+  if (text === void 0) return false;
+  try {
+    if (isProj) return !/<PackageReference\b[^>]*\bVersion(?:Override)?\s*=|<PackageReference\b[^>]*>\s*<Version>/i.test(text);
+    if (base === "Cargo.toml") return !/^\s*\[(?:[\w.\-"']+\.)?(?:dev-|build-)?dependencies(?:\.[^\]]+)?\]/m.test(text);
+    if (base === "pyproject.toml") return !/^\s*(?:dependencies|optional-dependencies|dev-dependencies)\s*=|^\s*\[(?:tool\.poetry\.(?:group\.[^.\]]+\.)?dependencies|dependency-groups|project\.optional-dependencies|tool\.uv)/m.test(text);
+    const j = JSON.parse(text);
+    const keys = base === "package.json" ? ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"] : ["require", "require-dev"];
+    return keys.every((k) => {
+      const v = j[k];
+      return v === void 0 || typeof v === "object" && v !== null && Object.keys(v).length === 0;
+    });
+  } catch {
+    return false;
+  }
+}
 function dedupeGaps(ms, fileSet) {
   const seen = /* @__PURE__ */ new Set();
   const out = [];
@@ -7888,6 +7944,7 @@ var RULES2 = {
   "config-unparseable": { severity: "error", summary: "dependabot.yml is not valid YAML." },
   "invalid-config": { severity: "error", summary: "dependabot.yml breaks a documented requirement (version, package-ecosystem, directory/directories, schedule.interval)." },
   "uncovered-manifest": { severity: "warning", summary: "A manifest exists that no updates entry covers, so Dependabot never opens version-update PRs for it." },
+  "unconfigured-ecosystem": { severity: "info", summary: "Manifests of an ecosystem that has no updates entry at all (usually a deliberate opt-out; use --all-ecosystems to treat it as a gap)." },
   "unmatched-entry": { severity: "warning", summary: "An updates entry points at a directory without a manifest of that ecosystem (Dependabot reports a dependency_file_not_found error)." },
   "overlapping-entries": { severity: "error", summary: "Two entries for the same ecosystem and target branch cover the same directory (Dependabot rejects overlapping entries)." },
   "directory-glob": { severity: "error", summary: "`directory` (singular) does not expand globs; use `directories`." }
@@ -7898,7 +7955,7 @@ var ICON = { error: "error  ", warning: "warning", info: "info   " };
 function summaryLine(r) {
   const s = r.summary;
   const count = (sev) => r.findings.filter((f) => f.severity === sev).length;
-  return `${s.manifests} manifest place(s) checked: ${s.covered} covered, ${s.coveredViaWorkspace} via workspace, ${s.excluded} excluded by exclude-paths, ${s.uncovered} uncovered; ${s.entries} updates entries. ${count("error")} error, ${count("warning")} warning, ${count("info")} info.`;
+  return `${s.manifests} manifest place(s) checked: ${s.covered} covered, ${s.coveredViaWorkspace} via workspace, ${s.excluded} excluded by exclude-paths, ${s.uncovered} uncovered${s.optedOut ? `, ${s.optedOut} in ecosystems without any entry` : ""}${s.noDependencies ? `, ${s.noDependencies} without dependencies (ignored)` : ""}; ${s.entries} updates entries. ${count("error")} error, ${count("warning")} warning, ${count("info")} info.`;
 }
 function renderText(r) {
   const out = [];
@@ -8034,12 +8091,13 @@ Find manifests that .github/dependabot.yml does not cover, entries that match no
       --fail-on <level>  exit 1 on: error | warning | never   (default: warning)
       --ignore <glob>    leave matching paths out (repeatable), e.g. --ignore 'examples/**'
       --include-vendored also look into vendor/, third_party/, extern/
+      --all-ecosystems   treat ecosystems with no updates entry at all as gaps (default: one info line each)
       --strict-paths     report gaps under test/example/docs paths as warnings (default: info)
       --fix              append the missing entries to .github/dependabot.yml (creates the file when absent)
       --list-rules       print the rule ids and exit
       --version`;
 function parseArgs(argv) {
-  const a = { cwd: ".", format: "text", failOn: "warning", ignore: [], includeVendored: false, strictPaths: false, fix: false };
+  const a = { cwd: ".", format: "text", failOn: "warning", ignore: [], includeVendored: false, strictPaths: false, allEcosystems: false, fix: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     const val = () => {
@@ -8088,6 +8146,9 @@ function parseArgs(argv) {
       case "--strict-paths":
         a.strictPaths = true;
         break;
+      case "--all-ecosystems":
+        a.allEcosystems = true;
+        break;
       case "--fix":
         a.fix = true;
         break;
@@ -8114,7 +8175,7 @@ ${HELP}`);
   try {
     const root = resolve(args.cwd);
     const source = args.rev ? revSource(root, args.rev) : worktreeSource(root);
-    const result = analyze(source, { ignore: args.ignore, includeVendored: args.includeVendored, strictPaths: args.strictPaths });
+    const result = analyze(source, { ignore: args.ignore, includeVendored: args.includeVendored, strictPaths: args.strictPaths, allEcosystems: args.allEcosystems });
     if (args.fix) {
       if (!result.suggestion) {
         console.error("dependabot-gaps: nothing to add");
