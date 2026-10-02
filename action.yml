@@ -1,0 +1,61 @@
+name: Dependabot Coverage Gaps
+description: "Find manifests and Actions folders your dependabot.yml does not cover, dead entries and overlaps. Prints the entries to add."
+author: cosmichackerx
+branding:
+  icon: shield
+  color: blue
+inputs:
+  path:
+    description: "Repository directory to check."
+    default: "."
+  fail-on:
+    description: "Lowest severity that fails the step: error, warning or never."
+    default: warning
+  ignore:
+    description: "Newline- or space-separated path globs to leave out, e.g. examples/** third_party/**."
+    default: ""
+  include-vendored:
+    description: "Also look into vendor/, third_party/ and extern/ (true or false)."
+    default: "false"
+  strict-paths:
+    description: "Report gaps under test, example and docs paths as warnings instead of info (true or false)."
+    default: "false"
+  all-ecosystems:
+    description: "Treat ecosystems that have no updates entry at all as gaps instead of one info line (true or false)."
+    default: "false"
+  summary:
+    description: "Append a Markdown report to the job summary (true or false)."
+    default: "true"
+  sarif-file:
+    description: "Also write a SARIF 2.1.0 report to this file (upload it with github/codeql-action/upload-sarif)."
+    default: ""
+runs:
+  using: composite
+  steps:
+    - name: Run dependabot-gaps
+      shell: bash
+      env:
+        ACTION_DIR: ${{ github.action_path }}
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_IGNORE: ${{ inputs.ignore }}
+        INPUT_VENDORED: ${{ inputs.include-vendored }}
+        INPUT_STRICT: ${{ inputs.strict-paths }}
+        INPUT_ALLECO: ${{ inputs.all-ecosystems }}
+        INPUT_SUMMARY: ${{ inputs.summary }}
+        INPUT_SARIF: ${{ inputs.sarif-file }}
+      run: |
+        cli="$ACTION_DIR/action/index.mjs"
+        common=("$INPUT_PATH")
+        read -r -a globs <<< "$INPUT_IGNORE"
+        for g in "${globs[@]}"; do common+=(--ignore "$g"); done
+        if [ "$INPUT_VENDORED" = "true" ]; then common+=(--include-vendored); fi
+        if [ "$INPUT_STRICT" = "true" ]; then common+=(--strict-paths); fi
+        if [ "$INPUT_ALLECO" = "true" ]; then common+=(--all-ecosystems); fi
+        if [ -n "$INPUT_SARIF" ]; then
+          node "$cli" "${common[@]}" --format sarif --output "$INPUT_SARIF" --fail-on never
+        fi
+        if [ "$INPUT_SUMMARY" = "true" ] && [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+          node "$cli" "${common[@]}" --format markdown --fail-on never >> "$GITHUB_STEP_SUMMARY"
+        fi
+        node "$cli" "${common[@]}" --format github --fail-on "$INPUT_FAIL_ON"

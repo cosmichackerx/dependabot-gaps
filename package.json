@@ -1,0 +1,62 @@
+{
+  "name": "dependabot-gaps",
+  "version": "0.1.0",
+  "description": "Find manifests and GitHub Actions folders that your .github/dependabot.yml does not cover, entries that point at nothing, and overlapping entries. Understands directories globs, exclude-paths and workspaces; prints the entries to add.",
+  "keywords": [
+    "dependabot",
+    "dependabot-yml",
+    "dependabot-config",
+    "dependency-updates",
+    "monorepo",
+    "github-actions",
+    "supply-chain",
+    "coverage",
+    "audit",
+    "lint",
+    "sarif",
+    "cli",
+    "typescript"
+  ],
+  "license": "MIT",
+  "author": "Muhammad Arslan <cosmichackerx@users.noreply.github.com>",
+  "homepage": "https://github.com/cosmichackerx/dependabot-gaps#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cosmichackerx/dependabot-gaps.git"
+  },
+  "bugs": {
+    "url": "https://github.com/cosmichackerx/dependabot-gaps/issues"
+  },
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "bin": {
+    "dependabot-gaps": "./dist/src/cli.js"
+  },
+  "files": [
+    "dist/src",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "bundle": "node scripts/bundle.mjs",
+    "test": "npm run build && node scripts/run-tests.mjs",
+    "start": "node dist/src/cli.js",
+    "prepare": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "yaml": "^2.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "ajv": "^8.20.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.9.0"
+  }
+}
