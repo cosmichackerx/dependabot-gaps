@@ -85,7 +85,7 @@ Add under updates: in .github/dependabot.yml
 Compared with main: 2 new, 1 existing and not shown, 0 resolved.
 ```
 
-(`/apps/legacy` was uncovered before the PR and stays unreported; that run exits 1 because of the new warning.) In the Action it is automatic on `pull_request` events, with one **sticky comment** that is created once and updated on every push (same approach as [agent-context-diff](https://github.com/cosmichackerx/agent-context-diff)):
+(`/apps/legacy` was uncovered before the PR and stays unreported; that run exits 1 because of the new warning.) In the Action it is switched on with `pr-mode: "true"` (or `base: <ref>`), and `comment: "true"` adds one **sticky comment** that is created once and updated on every push (same approach as [agent-context-diff](https://github.com/cosmichackerx/agent-context-diff)):
 
 ```yaml
 on: pull_request
@@ -101,7 +101,7 @@ jobs:
           fetch-depth: 0     # the base branch must be readable
       - uses: cosmichackerx/dependabot-gaps@v0.2.0
         with:
-          comment: "true"
+          comment: "true"      # implies pr-mode: true; use pr-mode: "true" alone for the check without a comment
 ```
 
 The comment is skipped (with a notice) for pull requests from forks, whose token is read-only, and a token without `pull-requests: write` only produces a warning; the job result never depends on the comment. Without `fetch-depth: 0` the action tries `git fetch --depth=1 origin <base>` and fails with a clear message if that is not possible (for example credentials removed on a private repository).
