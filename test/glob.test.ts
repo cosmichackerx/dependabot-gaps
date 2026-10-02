@@ -20,13 +20,15 @@ test('literal directories compare exactly, root only matches root', () => {
   assert.ok(!directoryMatches('/apps', 'apps/web'));
 });
 
-test('* is one segment, ** crosses segments, neither matches the root', () => {
+test('* is one segment, ** crosses segments; with FNM_DOTMATCH the "." entry makes `x/*` select x and `/**/*` the root', () => {
   assert.ok(directoryMatches('/packages/*', 'packages/a'));
   assert.ok(!directoryMatches('/packages/*', 'packages/a/b'));
-  assert.ok(!directoryMatches('/packages/*', 'packages'));
+  assert.ok(directoryMatches('/packages/*', 'packages')); // "packages/." (Ruby 4.0.6 and 3.4.8)
   assert.ok(directoryMatches('/**/*', 'a'));
   assert.ok(directoryMatches('/**/*', 'a/b/c'));
-  assert.ok(!directoryMatches('/**/*', ''));
+  assert.ok(directoryMatches('/**/*', '')); // "."
+  assert.ok(!directoryMatches('/**', 'a/b')); // trailing ** is *
+  assert.ok(directoryMatches('/**/', 'a/b/c'));
   assert.ok(directoryMatches('/services/**/api', 'services/api'));
   assert.ok(directoryMatches('/services/**/api', 'services/x/y/api'));
 });

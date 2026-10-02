@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+* Glob model rewritten as a segment walker and **differentially tested against real Ruby `Dir.glob`** (fixture + CI job + fuzz script). Fixes: `.` matching under `FNM_DOTMATCH` (`/apps/*` covers `/apps`, `/**/*` covers the root), `x/**/` includes `x`.
+* Dependabot housekeeping: actions bumped to checkout 7.0.1 / setup-node 7.0.0 (SHA-pinned), TypeScript 7.
+
 ## 0.1.0 - 2026-10-03
 
 First release.

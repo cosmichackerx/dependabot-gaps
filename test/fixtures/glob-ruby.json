@@ -1,0 +1,578 @@
+{
+  "ruby": "4.0.6",
+  "tree": [
+    ".",
+    ".github",
+    ".github/actions",
+    ".github/actions/build",
+    ".github/actions/setup",
+    ".github/workflows",
+    "a",
+    "a/b",
+    "a/b/c",
+    "a/b/c/d",
+    "app-1",
+    "app-10",
+    "app-2",
+    "appX",
+    "apps",
+    "apps/.hidden",
+    "apps/api",
+    "apps/api/src",
+    "apps/api/src/deep",
+    "apps/web",
+    "apps/web/src",
+    "docs",
+    "docs/de",
+    "docs/en",
+    "packages",
+    "packages/.cache",
+    "packages/a",
+    "packages/b",
+    "packages/b/nested",
+    "services",
+    "services/api",
+    "services/api/v1",
+    "services/worker",
+    "tools",
+    "tools/lint",
+    "tools/lint/rules",
+    "x.y",
+    "x.y/z"
+  ],
+  "cases": [
+    {
+      "pattern": "/",
+      "glob": false,
+      "matches": [
+        ""
+      ]
+    },
+    {
+      "pattern": "/apps",
+      "glob": false,
+      "matches": [
+        "apps"
+      ]
+    },
+    {
+      "pattern": "/apps/web",
+      "glob": false,
+      "matches": [
+        "apps/web"
+      ]
+    },
+    {
+      "pattern": "/apps/nope",
+      "glob": false,
+      "matches": []
+    },
+    {
+      "pattern": "/*",
+      "glob": true,
+      "matches": [
+        ".",
+        ".github",
+        "a",
+        "app-1",
+        "app-10",
+        "app-2",
+        "appX",
+        "apps",
+        "docs",
+        "packages",
+        "services",
+        "tools",
+        "x.y"
+      ]
+    },
+    {
+      "pattern": "/*/*",
+      "glob": true,
+      "matches": [
+        "./.github",
+        "./a",
+        "./app-1",
+        "./app-10",
+        "./app-2",
+        "./appX",
+        "./apps",
+        "./docs",
+        "./packages",
+        "./services",
+        "./tools",
+        "./x.y",
+        ".github/actions",
+        ".github/workflows",
+        "a/b",
+        "apps/.hidden",
+        "apps/api",
+        "apps/web",
+        "docs/de",
+        "docs/en",
+        "packages/.cache",
+        "packages/a",
+        "packages/b",
+        "services/api",
+        "services/worker",
+        "tools/lint",
+        "x.y/z"
+      ]
+    },
+    {
+      "pattern": "/*/*/*",
+      "glob": true,
+      "matches": [
+        "./.github/actions",
+        "./.github/workflows",
+        "./a/b",
+        "./apps/.hidden",
+        "./apps/api",
+        "./apps/web",
+        "./docs/de",
+        "./docs/en",
+        "./packages/.cache",
+        "./packages/a",
+        "./packages/b",
+        "./services/api",
+        "./services/worker",
+        "./tools/lint",
+        "./x.y/z",
+        ".github/actions/build",
+        ".github/actions/setup",
+        "a/b/c",
+        "apps/api/src",
+        "apps/web/src",
+        "packages/b/nested",
+        "services/api/v1",
+        "tools/lint/rules"
+      ]
+    },
+    {
+      "pattern": "/**",
+      "glob": true,
+      "matches": [
+        ".",
+        ".github",
+        "a",
+        "app-1",
+        "app-10",
+        "app-2",
+        "appX",
+        "apps",
+        "docs",
+        "packages",
+        "services",
+        "tools",
+        "x.y"
+      ]
+    },
+    {
+      "pattern": "/apps/*",
+      "glob": true,
+      "matches": [
+        "apps/.",
+        "apps/.hidden",
+        "apps/api",
+        "apps/web"
+      ]
+    },
+    {
+      "pattern": "/apps/**",
+      "glob": true,
+      "matches": [
+        "apps/.",
+        "apps/.hidden",
+        "apps/api",
+        "apps/web"
+      ]
+    },
+    {
+      "pattern": "/apps/**/*",
+      "glob": true,
+      "matches": [
+        "apps/.",
+        "apps/.hidden",
+        "apps/api",
+        "apps/api/src",
+        "apps/api/src/deep",
+        "apps/web",
+        "apps/web/src"
+      ]
+    },
+    {
+      "pattern": "/**/*",
+      "glob": true,
+      "matches": [
+        ".",
+        ".github",
+        ".github/actions",
+        ".github/actions/build",
+        ".github/actions/setup",
+        ".github/workflows",
+        "a",
+        "a/b",
+        "a/b/c",
+        "a/b/c/d",
+        "app-1",
+        "app-10",
+        "app-2",
+        "appX",
+        "apps",
+        "apps/.hidden",
+        "apps/api",
+        "apps/api/src",
+        "apps/api/src/deep",
+        "apps/web",
+        "apps/web/src",
+        "docs",
+        "docs/de",
+        "docs/en",
+        "packages",
+        "packages/.cache",
+        "packages/a",
+        "packages/b",
+        "packages/b/nested",
+        "services",
+        "services/api",
+        "services/api/v1",
+        "services/worker",
+        "tools",
+        "tools/lint",
+        "tools/lint/rules",
+        "x.y",
+        "x.y/z"
+      ]
+    },
+    {
+      "pattern": "/**/",
+      "glob": true,
+      "matches": [
+        ".github/",
+        ".github/actions/",
+        ".github/actions/build/",
+        ".github/actions/setup/",
+        ".github/workflows/",
+        "a/",
+        "a/b/",
+        "a/b/c/",
+        "a/b/c/d/",
+        "app-1/",
+        "app-10/",
+        "app-2/",
+        "appX/",
+        "apps/",
+        "apps/.hidden/",
+        "apps/api/",
+        "apps/api/src/",
+        "apps/api/src/deep/",
+        "apps/web/",
+        "apps/web/src/",
+        "docs/",
+        "docs/de/",
+        "docs/en/",
+        "packages/",
+        "packages/.cache/",
+        "packages/a/",
+        "packages/b/",
+        "packages/b/nested/",
+        "services/",
+        "services/api/",
+        "services/api/v1/",
+        "services/worker/",
+        "tools/",
+        "tools/lint/",
+        "tools/lint/rules/",
+        "x.y/",
+        "x.y/z/"
+      ]
+    },
+    {
+      "pattern": "/packages/*",
+      "glob": true,
+      "matches": [
+        "packages/.",
+        "packages/.cache",
+        "packages/a",
+        "packages/b"
+      ]
+    },
+    {
+      "pattern": "/packages/**/*",
+      "glob": true,
+      "matches": [
+        "packages/.",
+        "packages/.cache",
+        "packages/a",
+        "packages/b",
+        "packages/b/nested"
+      ]
+    },
+    {
+      "pattern": "/.github/*",
+      "glob": true,
+      "matches": [
+        ".github/.",
+        ".github/actions",
+        ".github/workflows"
+      ]
+    },
+    {
+      "pattern": "/.github/actions/*",
+      "glob": true,
+      "matches": [
+        ".github/actions/.",
+        ".github/actions/build",
+        ".github/actions/setup"
+      ]
+    },
+    {
+      "pattern": "/.github/**/*",
+      "glob": true,
+      "matches": [
+        ".github/.",
+        ".github/actions",
+        ".github/actions/build",
+        ".github/actions/setup",
+        ".github/workflows"
+      ]
+    },
+    {
+      "pattern": "/.*",
+      "glob": true,
+      "matches": [
+        ".",
+        ".github"
+      ]
+    },
+    {
+      "pattern": "/**/.*",
+      "glob": true,
+      "matches": [
+        ".",
+        ".github",
+        "apps/.hidden",
+        "packages/.cache"
+      ]
+    },
+    {
+      "pattern": "/services/*/",
+      "glob": true,
+      "matches": [
+        "services/./",
+        "services/api/",
+        "services/worker/"
+      ]
+    },
+    {
+      "pattern": "/services/api/*",
+      "glob": true,
+      "matches": [
+        "services/api/.",
+        "services/api/v1"
+      ]
+    },
+    {
+      "pattern": "/app-?",
+      "glob": true,
+      "matches": [
+        "app-1",
+        "app-2"
+      ]
+    },
+    {
+      "pattern": "/app-??",
+      "glob": true,
+      "matches": [
+        "app-10"
+      ]
+    },
+    {
+      "pattern": "/app-[12]",
+      "glob": true,
+      "matches": [
+        "app-1",
+        "app-2"
+      ]
+    },
+    {
+      "pattern": "/app-[!1]",
+      "glob": true,
+      "matches": [
+        "app-2"
+      ]
+    },
+    {
+      "pattern": "/app-[0-9]*",
+      "glob": true,
+      "matches": [
+        "app-1",
+        "app-10",
+        "app-2"
+      ]
+    },
+    {
+      "pattern": "/app*",
+      "glob": true,
+      "matches": [
+        "app-1",
+        "app-10",
+        "app-2",
+        "appX",
+        "apps"
+      ]
+    },
+    {
+      "pattern": "/{apps,packages}/*",
+      "glob": true,
+      "matches": [
+        "apps/.",
+        "apps/.hidden",
+        "apps/api",
+        "apps/web",
+        "packages/.",
+        "packages/.cache",
+        "packages/a",
+        "packages/b"
+      ]
+    },
+    {
+      "pattern": "/{apps,docs}/**/*",
+      "glob": true,
+      "matches": [
+        "apps/.",
+        "apps/.hidden",
+        "apps/api",
+        "apps/api/src",
+        "apps/api/src/deep",
+        "apps/web",
+        "apps/web/src",
+        "docs/.",
+        "docs/de",
+        "docs/en"
+      ]
+    },
+    {
+      "pattern": "/**/src",
+      "glob": true,
+      "matches": [
+        "apps/api/src",
+        "apps/web/src"
+      ]
+    },
+    {
+      "pattern": "/**/b",
+      "glob": true,
+      "matches": [
+        "a/b",
+        "packages/b"
+      ]
+    },
+    {
+      "pattern": "/a/**/d",
+      "glob": true,
+      "matches": [
+        "a/b/c/d"
+      ]
+    },
+    {
+      "pattern": "/a/**/c/d",
+      "glob": true,
+      "matches": [
+        "a/b/c/d"
+      ]
+    },
+    {
+      "pattern": "/a/**/*/d",
+      "glob": true,
+      "matches": [
+        "a/b/c/d"
+      ]
+    },
+    {
+      "pattern": "/*/src",
+      "glob": true,
+      "matches": []
+    },
+    {
+      "pattern": "/*/*/src",
+      "glob": true,
+      "matches": [
+        "apps/api/src",
+        "apps/web/src"
+      ]
+    },
+    {
+      "pattern": "/x.y",
+      "glob": false,
+      "matches": [
+        "x.y"
+      ]
+    },
+    {
+      "pattern": "/x.y/*",
+      "glob": true,
+      "matches": [
+        "x.y/.",
+        "x.y/z"
+      ]
+    },
+    {
+      "pattern": "/x.?",
+      "glob": true,
+      "matches": [
+        "x.y"
+      ]
+    },
+    {
+      "pattern": "/?",
+      "glob": true,
+      "matches": [
+        ".",
+        "a"
+      ]
+    },
+    {
+      "pattern": "/apps/?",
+      "glob": true,
+      "matches": [
+        "apps/."
+      ]
+    },
+    {
+      "pattern": "/apps/.*",
+      "glob": true,
+      "matches": [
+        "apps/.",
+        "apps/.hidden"
+      ]
+    },
+    {
+      "pattern": "/apps/.?",
+      "glob": true,
+      "matches": []
+    },
+    {
+      "pattern": "/.?",
+      "glob": true,
+      "matches": []
+    },
+    {
+      "pattern": "apps/*",
+      "glob": true,
+      "matches": [
+        "apps/.",
+        "apps/.hidden",
+        "apps/api",
+        "apps/web"
+      ]
+    },
+    {
+      "pattern": "apps/web",
+      "glob": false,
+      "matches": [
+        "apps/web"
+      ]
+    }
+  ]
+}

@@ -62,13 +62,40 @@ export function globToRegExp(pattern: string, deep = false): RegExp[] {
   });
 }
 
-/** Does `pattern` (as written in dependabot.yml) select the repo-relative directory `dir`? */
+/**
+ * Does `pattern` (as written in dependabot.yml) select the repo-relative directory `dir`?
+ *
+ * Models `Dir.glob(pattern.delete_prefix("/"), File::FNM_DOTMATCH)` as dependabot-core calls it. Verified against real
+ * Ruby (4.0.6 and 3.4.8, scripts/glob-differential.rb, test/differential.test.ts). Two non-obvious facts:
+ *  - With FNM_DOTMATCH a wildcard segment also matches the "." entry (at most once per path), so `apps/*` selects `apps` itself and `/*` or
+ *    `/**\/*` select the repository root. After a `**` that descended into a directory, "." is not yielded.
+ *  - `**` only recurses when followed by `/`; a trailing `**` is `*`, and a trailing `**\/` selects every directory below.
+ */
 export function directoryMatches(pattern: string, dir: string): boolean {
-  const p = normalizeDir(pattern);
   const d = normalizeDir(dir);
-  if (!isGlob(pattern)) return p === d;
-  if (d === '') return false; // Dir.glob never yields the root itself
-  return globToRegExp(p).some((r) => r.test(d));
+  if (!isGlob(pattern)) return normalizeDir(pattern) === d;
+  const comps = d === '' ? [] : d.split('/');
+  return expandBraces(pattern.replace(/^\/+/, '')).some((p) => {
+    const recursiveLast = /(^|\/)\*\*\/$/.test(p);
+    const segs = p.replace(/\/+$/, '').split('/');
+    const res = segs.map((s) => (s === '**' ? null : new RegExp('^' + segmentToRegex(s) + '$')));
+    const magic = segs.map((x) => /[*?[{]/.test(x));
+    // wild: a wildcard segment has already consumed a real path component
+    const walk = (i: number, j: number, wild: boolean, dots: number, afterStar2 = false): boolean => {
+      if (i === segs.length) return j === comps.length;
+      const r = res[i];
+      const last = i === segs.length - 1;
+      if (r === null && (!last || recursiveLast)) {
+        if (last) return j < comps.length || (j === comps.length && i > 0 && res[i - 1] !== null); // `x/**/` also selects x itself
+        for (let k = 0; k <= comps.length - j; k++) if (walk(i + 1, j + k, wild || k > 0, dots, true)) return true;
+        return false;
+      }
+      const rx = r ?? /^[^/]*$/;
+      if (j < comps.length && rx.test(comps[j]!) && walk(i + 1, j + 1, wild || magic[i] || r === null || afterStar2, dots)) return true;
+      return dots === 0 && !wild && rx.test('.') && walk(i + 1, j, wild, 1);
+    };
+    return walk(0, 0, false, 0);
+  });
 }
 
 /** exclude-paths: patterns relative to the entry directory; match the path itself or any parent directory. */

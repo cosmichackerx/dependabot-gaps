@@ -79,14 +79,28 @@ Findings appear as annotations and as a table in the job summary.
 
 ## What it models (and where that comes from)
 
-* **`directories` globs** follow `dependabot-core` (`updater/lib/dependabot/file_fetcher_command.rb`): a directory is a glob if it contains `*`, `?` or a `[..]` pair; the leading `/` is dropped and `Dir.glob(pattern, File::FNM_DOTMATCH)` selects directories. So `*` matches dot directories, `/**/*` means all depths below the root (not the root), and **a trailing `**` without `/` behaves like `*`** (Ruby semantics). `directory:` (singular) is always literal.
+* **`directories` globs** follow `dependabot-core` (`updater/lib/dependabot/file_fetcher_command.rb`): a directory is a glob if it contains `*`, `?` or a `[..]` pair; the leading `/` is dropped and `Dir.glob(pattern, File::FNM_DOTMATCH)` selects directories. `directory:` (singular) is always literal. Since v0.2.0 the glob model is **differentially tested against real Ruby** (see below), which corrected three things I had wrong in v0.1.0:
+  * with `FNM_DOTMATCH` a wildcard also matches the `.` entry, so `/apps/*` selects `/apps` itself, and `/*` or `/**/*` select the **repository root** (v0.1.0 claimed `/**/*` excluded the root);
+  * that `.` is only yielded before any wildcard has consumed a real directory (`/*/*` does not yield the root, `/*/?` does not yield `.github`);
+  * `**` only recurses when followed by `/`; a trailing `**` is `*`, and `x/**/` selects `x` itself plus everything below it.
 * **`exclude-paths`** is honoured (matches the manifest or a parent directory; relative to the entry directory or, to avoid false alarms, the repository root).
 * **Workspaces:** manifests Dependabot fetches together with a covered one are not gaps: npm/yarn/pnpm `workspaces` and `pnpm-workspace.yaml`, Cargo `[workspace]`, Maven `<modules>`, uv `[tool.uv.workspace]`, and every Gradle build file below a covered `settings.gradle(.kts)` (settings files often compute their includes).
 * **GitHub Actions:** `/` covers `.github/workflows/*.y(a)ml` and the root `action.yml`; a directory entry (or `/.github/workflows`) covers the YAML files in that folder; composite actions in subfolders need their own directory (`/.github/actions/*`).
 * **Noise filters:** `node_modules`, `.git`, `vendor`, `third_party` and similar are skipped (`--include-vendored`); `package.json`/`composer.json`/`Cargo.toml`/`pyproject.toml` without any dependency table and `.csproj` files without a versioned `PackageReference` are ignored (central package management keeps versions elsewhere); paths containing test/example/fixture/demo/docs are `info`.
 * `uv`/`bun`/`opentofu` are suggested instead of `pip`/`npm`/`terraform` when a `uv.lock`/`bun.lock`/`.opentofu.lock.hcl` sits next to the manifest.
 
-These come from the [Dependabot options reference](https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference) and the `dependabot-core` source, **not from observing Dependabot run**. I could not test against a live Dependabot, and I had no Ruby on the machine to execute `Dir.glob` itself; the glob behaviour is from Ruby's documentation. Treat a finding as "worth a look", and tell me where it is wrong.
+These come from the [Dependabot options reference](https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference) and the `dependabot-core` source, **not from observing Dependabot run**. I could not test against a live Dependabot. The glob expansion is checked against real Ruby (below), but whether Dependabot's own pipeline (for example its handling of `exclude-paths`, or any later change to `file_fetcher_command.rb`) matches that call was read from the source, not observed. Treat a finding as "worth a look", and tell me where it is wrong.
+
+## Glob model vs real Ruby (differential check)
+
+`scripts/glob-differential.rb` runs the call `dependabot-core` makes to expand `directories` (`Dir.glob(pattern.delete_prefix("/"), File::FNM_DOTMATCH)`, directories only) on a fixed 40-directory tree. The result is committed as `test/fixtures/glob-ruby.json` (generated with Ruby 4.0.6; Ruby 3.4.8 gave identical output) and `test/differential.test.ts` asserts that `src/glob.ts` selects exactly the same directories for 47 hand-picked patterns. CI regenerates the fixture with the runner's Ruby and fails on any difference, and fuzzes 3000 random patterns (`scripts/glob-fuzz.mjs`).
+
+| Check | Result |
+|---|---|
+| 47 hand-picked patterns (literal, `x/*`, `/*`, `/**/*`, `x/**`, `x/**/`, braces, classes, dot dirs) | all identical to Ruby |
+| Random patterns, seeds 1-4 x 5000 | 1, 3, 3 and 2 mismatches (9 / 20000 = 0.045 %), **all of the shape `x/**/**/`** (two consecutive `**/` after a prefix); not modelled |
+
+"Identical" is on that fixed tree only, not a proof for every possible tree, and the oracle is Ruby's `Dir.glob`, not Dependabot itself. Run `RUBY=ruby node scripts/glob-fuzz.mjs 5000 <seed>` to try more.
 
 ## Measured on 238 real repositories
 
@@ -100,13 +114,13 @@ I ran v0.1.0 over the 240 top-starred public repositories of 20 languages that I
 | ...of which only have an `unconfigured-ecosystem` info (deliberate opt-out) | most of the rest |
 | No `dependabot.yml` but at least one supported manifest | 130 of 136 |
 
-Across the 102 configured repositories: 5471 manifest places, 486 directly covered, 1084 covered via a workspace, 893 ignored because they declare no dependencies, 2452 in ecosystems with no entry, and **556 uncovered manifests, reported as 374 warnings and 144 infos (one finding per directory and ecosystem)**; 13 `unmatched-entry` warnings.
+Across the 102 configured repositories: 5471 manifest places, 486 directly covered, 1084 covered via a workspace, 893 ignored because they declare no dependencies, 2452 in ecosystems with no entry, and **uncovered manifests reported as 350 warnings and 143 infos (one finding per directory and ecosystem)** with v0.2.0 (v0.1.0 said 374 and 144; the 24 fewer warnings are all `TriliumNext/Trilium`, whose `directories: ["/**"]` does select the repository root once the Ruby `.` rule is modelled); 12 `unmatched-entry` warnings (13 in v0.1.0; the difference is Trilium's `/**`). The other counts in this paragraph are from the v0.1.0 run.
 
 **How I checked precision (and the limits):**
 
 * A first pass flagged 2290 warnings; reading the output showed that large repos opt out of whole ecosystems on purpose (for example `symfony/symfony` only configures GitHub Actions), so ecosystem-level opt-out became its own info line. Ignoring dependency-less manifests, following workspaces and `.csproj` central package management then brought the total down to 374 warnings. These are changes I made **after seeing the numbers**, so the final table is tuned to this corpus.
-* An independent Python script (own glob matcher, `pyyaml`) re-checked a random sample of **40 uncovered warnings** (seed 2026): in all 40 no entry of a compatible ecosystem has a matching directory and the manifest exists in the tree. An earlier sample of 40 exposed two real modelling gaps that I fixed: uv workspaces (`langgenius/dify`) and `/**` (`TriliumNext/Trilium`, now reported as `unmatched-entry` with an explanation instead of silently treated as recursive).
-* All 13 `unmatched-entry` warnings were checked against the tree by hand; each points at a directory without a manifest of that ecosystem (for example `curl/curl`, `pi-hole/pi-hole`, `Stirling-PDF`, `openai/codex`).
+* An independent Python script (own glob matcher, `pyyaml`) re-checked a random sample of **40 uncovered warnings** (seed 2026): in all 40 no entry of a compatible ecosystem has a matching directory and the manifest exists in the tree. An earlier sample of 40 exposed two real modelling gaps that I fixed: uv workspaces (`langgenius/dify`) and `/**` (`TriliumNext/Trilium`; in v0.1.0 I handled `/**` as 'matches nothing', and the Ruby check showed it matches the root and the top-level directories).
+* All 13 v0.1.0 `unmatched-entry` warnings (12 still apply) were checked against the tree by hand; each points at a directory without a manifest of that ecosystem (for example `curl/curl`, `pi-hole/pi-hole`, `Stirling-PDF`, `openai/codex`).
 * **Not verified:** that Dependabot really skips these manifests (I did not run Dependabot), that every flagged manifest *wants* updates (some are intentionally unmanaged; use `--ignore` or `exclude-paths`), and workspace handling for ecosystems other than the ones listed. Some large repos set `open-pull-requests-limit: 0` and use Dependabot only for alerts; this tool does not look at that.
 
 ## How it compares

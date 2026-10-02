@@ -7423,11 +7423,29 @@ function globToRegExp(pattern, deep = false) {
   });
 }
 function directoryMatches(pattern, dir) {
-  const p = normalizeDir(pattern);
   const d = normalizeDir(dir);
-  if (!isGlob(pattern)) return p === d;
-  if (d === "") return false;
-  return globToRegExp(p).some((r) => r.test(d));
+  if (!isGlob(pattern)) return normalizeDir(pattern) === d;
+  const comps = d === "" ? [] : d.split("/");
+  return expandBraces(pattern.replace(/^\/+/, "")).some((p) => {
+    const recursiveLast = /(^|\/)\*\*\/$/.test(p);
+    const segs = p.replace(/\/+$/, "").split("/");
+    const res = segs.map((s) => s === "**" ? null : new RegExp("^" + segmentToRegex(s) + "$"));
+    const magic = segs.map((x) => /[*?[{]/.test(x));
+    const walk2 = (i, j, wild, dots, afterStar2 = false) => {
+      if (i === segs.length) return j === comps.length;
+      const r = res[i];
+      const last = i === segs.length - 1;
+      if (r === null && (!last || recursiveLast)) {
+        if (last) return j < comps.length || j === comps.length && i > 0 && res[i - 1] !== null;
+        for (let k = 0; k <= comps.length - j; k++) if (walk2(i + 1, j + k, wild || k > 0, dots, true)) return true;
+        return false;
+      }
+      const rx = r ?? /^[^/]*$/;
+      if (j < comps.length && rx.test(comps[j]) && walk2(i + 1, j + 1, wild || magic[i] || r === null || afterStar2, dots)) return true;
+      return dots === 0 && !wild && rx.test(".") && walk2(i + 1, j, wild, 1);
+    };
+    return walk2(0, 0, false, 0);
+  });
 }
 function excludedBy(patterns, entryDir, path) {
   return excludedFrom(patterns, entryDir, path) || entryDir !== "" && excludedFrom(patterns, "", path);
