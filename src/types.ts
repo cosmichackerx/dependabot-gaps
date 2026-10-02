@@ -76,6 +76,8 @@ export interface Summary {
 
 export interface Result {
   configFile?: string;
+  /** set in pull request mode (--base): `findings` then holds only what the head introduced */
+  pr?: { base: string; existing: number; resolved: number };
   findings: Finding[];
   summary: Summary;
 }

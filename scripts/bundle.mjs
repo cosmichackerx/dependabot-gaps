@@ -3,9 +3,10 @@ import { build } from 'esbuild';
 import { readFileSync } from 'node:fs';
 
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+for (const [entry, outfile] of [['src/cli.ts', 'action/index.mjs'], ['src/comment-cli.ts', 'action/comment.mjs']])
 await build({
-  entryPoints: ['src/cli.ts'],
-  outfile: 'action/index.mjs',
+  entryPoints: [entry],
+  outfile,
   bundle: true,
   platform: 'node',
   format: 'esm',

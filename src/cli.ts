@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { analyze } from './analyze.js';
+import { diffResults } from './pr.js';
 import { CONFIG_PATHS } from './config.js';
 import { meetsThreshold, renderGithub, renderJson, renderMarkdown, renderSarif, renderText } from './report.js';
 import { revSource, worktreeSource } from './source.js';
@@ -21,7 +22,7 @@ function version(): string {
   } catch {
     /* bundled */
   }
-  return '0.1.0';
+  return '0.2.0';
 }
 
 const HELP = `dependabot-gaps [path] [options]
@@ -32,6 +33,7 @@ Find manifests that .github/dependabot.yml does not cover, entries that match no
       --rev <ref>        read the files of a git revision instead of the working tree (works in --no-checkout clones)
   -f, --format <fmt>     text | markdown | json | github | sarif   (default: text)
   -o, --output <file>    write the report to a file
+      --base <ref>       pull request mode: analyse <ref> too and report only gaps that the head introduces (exit code follows those only)
       --fail-on <level>  exit 1 on: error | warning | never   (default: warning)
       --ignore <glob>    leave matching paths out (repeatable), e.g. --ignore 'examples/**'
       --include-vendored also look into vendor/, third_party/, extern/
@@ -44,6 +46,7 @@ Find manifests that .github/dependabot.yml does not cover, entries that match no
 interface Args {
   cwd: string;
   rev?: string;
+  base?: string;
   format: string;
   output?: string;
   failOn: 'error' | 'warning' | 'never';
@@ -81,6 +84,9 @@ function parseArgs(argv: string[]): Args | number {
       case '--rev':
         a.rev = val();
         break;
+      case '--base':
+        a.base = val();
+        break;
       case '-f':
       case '--format':
         a.format = val();
@@ -116,6 +122,7 @@ function parseArgs(argv: string[]): Args | number {
     }
   }
   if (!['text', 'markdown', 'json', 'github', 'sarif'].includes(a.format)) throw new Error('--format must be text, markdown, json, github or sarif');
+  if (a.fix && a.base) throw new Error('--fix cannot be combined with --base');
   if (a.fix && a.rev) throw new Error('--fix needs the working tree, not --rev');
   return a;
 }
@@ -132,7 +139,9 @@ function main(): number {
   try {
     const root = resolve(args.cwd);
     const source = args.rev ? revSource(root, args.rev) : worktreeSource(root);
-    const result = analyze(source, { ignore: args.ignore, includeVendored: args.includeVendored, strictPaths: args.strictPaths, allEcosystems: args.allEcosystems });
+    const opts = { ignore: args.ignore, includeVendored: args.includeVendored, strictPaths: args.strictPaths, allEcosystems: args.allEcosystems };
+    const head = analyze(source, opts);
+    const result = args.base ? diffResults(analyze(revSource(root, args.base), opts), head, args.base) : head;
     if (args.fix) {
       if (!result.suggestion) {
         console.error('dependabot-gaps: nothing to add');

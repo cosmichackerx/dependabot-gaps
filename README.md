@@ -56,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: cosmichackerx/dependabot-gaps@v0.1.0
+      - uses: cosmichackerx/dependabot-gaps@v0.2.0
         with:
           fail-on: warning        # error | warning | never
           # ignore: "examples/** third_party/**"
@@ -64,6 +64,47 @@ jobs:
 ```
 
 Findings appear as annotations and as a table in the job summary.
+
+## Pull request mode: only the gaps a PR introduces
+
+On a repository with 40 existing gaps a check that fails on every one gets switched off. `--base <ref>` analyses the base revision as well and reports **only findings the head adds**; the exit code follows those alone. Line numbers do not take part in the comparison (so reformatting `dependabot.yml` does not make old findings new).
+
+```text
+$ git checkout feature && dependabot-gaps --base main
+warning  uncovered-manifest    npm: package.json in /apps/api is not covered by any updates entry
+           apps/api/package.json
+info     unconfigured-ecosystem  docker: 1 manifest(s) in 1 place(s) (/apps/api) and no docker entry at all: deliberate opt-out? ...
+           .github/dependabot.yml
+
+Add under updates: in .github/dependabot.yml
+  - package-ecosystem: "npm"
+    directory: "/apps/api"
+    schedule:
+      interval: "weekly"
+
+Compared with main: 2 new, 1 existing and not shown, 0 resolved.
+```
+
+(`/apps/legacy` was uncovered before the PR and stays unreported; that run exits 1 because of the new warning.) In the Action it is switched on with `pr-mode: "true"` (or `base: <ref>`), and `comment: "true"` adds one **sticky comment** that is created once and updated on every push (same approach as [agent-context-diff](https://github.com/cosmichackerx/agent-context-diff)):
+
+```yaml
+on: pull_request
+permissions:
+  contents: read
+  pull-requests: write      # only for the comment
+jobs:
+  gaps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0     # the base branch must be readable
+      - uses: cosmichackerx/dependabot-gaps@v0.2.0
+        with:
+          comment: "true"      # implies pr-mode: true; use pr-mode: "true" alone for the check without a comment
+```
+
+The comment is skipped (with a notice) for pull requests from forks, whose token is read-only, and a token without `pull-requests: write` only produces a warning; the job result never depends on the comment. Without `fetch-depth: 0` the action tries `git fetch --depth=1 origin <base>` and fails with a clear message if that is not possible (for example credentials removed on a private repository).
 
 ## Rules
 
@@ -144,6 +185,7 @@ dependabot-gaps [path] [options]
       --rev <ref>        read the files of a git revision instead of the working tree
   -f, --format <fmt>     text | markdown | json | github | sarif   (default: text)
   -o, --output <file>    write the report to a file
+      --base <ref>       pull request mode: report only gaps the head introduces
       --fail-on <level>  exit 1 on: error | warning | never   (default: warning)
       --ignore <glob>    leave matching paths out (repeatable)
       --include-vendored also look into vendor/, third_party/, extern/

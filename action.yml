@@ -29,6 +29,18 @@ inputs:
   sarif-file:
     description: "Also write a SARIF 2.1.0 report to this file (upload it with github/codeql-action/upload-sarif)."
     default: ""
+  pr-mode:
+    description: "Pull request mode: report and count only gaps the head introduces, compared with the base branch of the pull_request event (fetched when missing). Implied by comment: true or by setting base. Off by default so existing workflows keep their full report."
+    default: "false"
+  base:
+    description: "Pull request mode with an explicit git ref as the base (any event type)."
+    default: ""
+  comment:
+    description: "In pull request mode, post (and keep updating) one sticky comment with the new gaps (true or false). Needs pull-requests: write; skipped for forks."
+    default: "false"
+  github-token:
+    description: "Token used only for the sticky comment."
+    default: ${{ github.token }}
 runs:
   using: composite
   steps:
@@ -44,6 +56,10 @@ runs:
         INPUT_ALLECO: ${{ inputs.all-ecosystems }}
         INPUT_SUMMARY: ${{ inputs.summary }}
         INPUT_SARIF: ${{ inputs.sarif-file }}
+        INPUT_BASE: ${{ inputs.base }}
+        INPUT_PRMODE: ${{ inputs.pr-mode }}
+        INPUT_COMMENT: ${{ inputs.comment }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
         cli="$ACTION_DIR/action/index.mjs"
         common=("$INPUT_PATH")
@@ -52,10 +68,31 @@ runs:
         if [ "$INPUT_VENDORED" = "true" ]; then common+=(--include-vendored); fi
         if [ "$INPUT_STRICT" = "true" ]; then common+=(--strict-paths); fi
         if [ "$INPUT_ALLECO" = "true" ]; then common+=(--all-ecosystems); fi
+        base="$INPUT_BASE"
+        if [ -z "$base" ] && { [ "$INPUT_PRMODE" = "true" ] || [ "$INPUT_COMMENT" = "true" ]; }; then
+          if [ "${GITHUB_EVENT_NAME:-}" != "pull_request" ] || [ -z "${GITHUB_BASE_REF:-}" ]; then
+            echo "::warning::dependabot-gaps: pr-mode/comment only apply to pull_request events; reporting everything"
+          else
+            base="origin/$GITHUB_BASE_REF"
+            if ! git -C "$INPUT_PATH" rev-parse --verify -q "$base^{commit}" > /dev/null; then
+              git -C "$INPUT_PATH" fetch --no-tags --depth=1 origin "$GITHUB_BASE_REF" > /dev/null 2>&1 || true
+              if git -C "$INPUT_PATH" rev-parse --verify -q FETCH_HEAD > /dev/null; then base="FETCH_HEAD"; fi
+            fi
+            if ! git -C "$INPUT_PATH" rev-parse --verify -q "$base^{commit}" > /dev/null; then
+              echo "::error::dependabot-gaps: cannot read the base branch ($GITHUB_BASE_REF). Use actions/checkout with fetch-depth: 0 (or set persist-credentials: true), or pass base: <ref>."
+              exit 2
+            fi
+          fi
+        fi
+        if [ -n "$base" ]; then common+=(--base "$base"); fi
         if [ -n "$INPUT_SARIF" ]; then
           node "$cli" "${common[@]}" --format sarif --output "$INPUT_SARIF" --fail-on never
         fi
         if [ "$INPUT_SUMMARY" = "true" ] && [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
           node "$cli" "${common[@]}" --format markdown --fail-on never >> "$GITHUB_STEP_SUMMARY"
+        fi
+        if [ -n "$base" ] && [ "$INPUT_COMMENT" = "true" ]; then
+          node "$cli" "${common[@]}" --format markdown --fail-on never > "${RUNNER_TEMP:-/tmp}/dependabot-gaps-pr.md"
+          node "$ACTION_DIR/action/comment.mjs" "${RUNNER_TEMP:-/tmp}/dependabot-gaps-pr.md"
         fi
         node "$cli" "${common[@]}" --format github --fail-on "$INPUT_FAIL_ON"
