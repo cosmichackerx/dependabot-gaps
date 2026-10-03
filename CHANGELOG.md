@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+* CI: README test count and action pins are checked by [claims-check](https://github.com/cosmichackerx/claims-check) (`.claims.json`). The first run found the README saying 41 tests while the suite has 53; fixed.
+
 ## 0.2.1 - 2026-10-03
 
 * New rule `unsupported-version-catalog` (warning): a Gradle version catalog other than `gradle/libs.versions.toml` is not read by Dependabot (docs list only the standard catalog; custom catalogs: dependabot-core#8079). Reported only when the config has a `gradle` entry (or with `--all-ecosystems`); catalogs under test/example paths are `info`.

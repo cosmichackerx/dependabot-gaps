@@ -1,0 +1,6 @@
+{
+  "claims": [
+    {"id": "tests", "file": "README.md", "regex": "fixture suite \\((\\d+) tests\\)", "expect": {"command": "node scripts/run-tests.mjs 2>&1", "regex": "^(?:# |ℹ )tests (\\d+)"}},
+    {"id": "action pins in the README", "file": "README.md", "regex": "dependabot-gaps@v([0-9.]+)", "expect": {"file": "package.json", "regex": "\"version\": \"([0-9.]+)\""}}
+  ]
+}
