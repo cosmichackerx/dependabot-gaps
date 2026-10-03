@@ -1,5 +1,9 @@
 # dependabot-gaps
 
+[![CI](https://github.com/cosmichackerx/dependabot-gaps/actions/workflows/ci.yml/badge.svg)](https://github.com/cosmichackerx/dependabot-gaps/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/cosmichackerx/dependabot-gaps?sort=semver)](https://github.com/cosmichackerx/dependabot-gaps/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 **Find what your `.github/dependabot.yml` forgets to update.** `dependabot-gaps` lists the manifests in your repository (monorepo packages, nested `package.json`, `Dockerfile`s, composite actions under `.github/actions/*`, `pyproject.toml`, `Cargo.toml`, `pom.xml`, ...) that **no `updates` entry covers**, entries that point at a directory with nothing to update, overlapping entries, and `directory:` keys with a glob that Dependabot takes literally. Then it prints the entries to add (or appends them with `--fix`).
 
 CLI + GitHub Action. Zero network access, SARIF output for code scanning, Node 20+.
@@ -34,7 +38,7 @@ Add under updates: in .github/dependabot.yml
 
 ```bash
 # needs Node 20+
-git clone --branch v0.1.0 https://github.com/cosmichackerx/dependabot-gaps && cd dependabot-gaps
+git clone --branch v0.2.1 https://github.com/cosmichackerx/dependabot-gaps && cd dependabot-gaps
 npm ci                                  # also compiles the CLI (prepare script)
 node dist/src/cli.js /path/to/your/repo # exit code 1 when something is uncovered
 node dist/src/cli.js /path/to/repo --fix   # append the missing entries to .github/dependabot.yml
@@ -56,7 +60,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: cosmichackerx/dependabot-gaps@v0.2.0
+      - uses: cosmichackerx/dependabot-gaps@v0.2.1
         with:
           fail-on: warning        # error | warning | never
           # ignore: "examples/** third_party/**"
@@ -99,7 +103,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0     # the base branch must be readable
-      - uses: cosmichackerx/dependabot-gaps@v0.2.0
+      - uses: cosmichackerx/dependabot-gaps@v0.2.1
         with:
           comment: "true"      # implies pr-mode: true; use pr-mode: "true" alone for the check without a comment
 ```
@@ -215,3 +219,21 @@ npm run bundle      # regenerate action/index.mjs (committed; CI fails if it is 
 ```
 
 MIT licensed. See [CHANGELOG.md](CHANGELOG.md), [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md).
+
+## Related tools
+
+Small, independent tools by the same author, for build and CI hygiene and for migrations with a deadline. Each works on its own; none requires another.
+
+**Gradle and Android migrations**
+
+* [gradle-version-catalog-lint](https://github.com/cosmichackerx/gradle-version-catalog-lint): Lints `libs.versions.toml`: unused libraries, plugins and versions, dynamic or SNAPSHOT versions, hard-coded dependencies.
+* [gradle10-ready](https://github.com/cosmichackerx/gradle10-ready): Static scan of Gradle build scripts for what Gradle 10 removes (space assignment, multi-string dependencies, Kotlin DSL delegates). `--fix`, PR mode.
+* [agp9-ready](https://github.com/cosmichackerx/agp9-ready): Static scan of Gradle files for what Android Gradle Plugin 9 and 10 break (built-in Kotlin, legacy variant API, opt-outs), including `buildSrc`. `--fix`, PR mode.
+* [android-target-ready](https://github.com/cosmichackerx/android-target-ready): Static scanner for the targetSdk 36 / 37 migration in app code and manifests (edge-to-edge, predictive back, large screens).
+* [android-target-lint](https://github.com/cosmichackerx/android-target-lint): The same targetSdk migration checks as real Android Lint rules (a lint jar with type resolution).
+
+**CI and repository hygiene**
+
+* [node24-ready](https://github.com/cosmichackerx/node24-ready): Finds GitHub Actions still on the removed Node 20 runtime, also inside composite actions and reusable workflows, and the smallest node24 upgrade.
+* [sha256-ready](https://github.com/cosmichackerx/sha256-ready): Finds code that assumes 40-character Git hashes before Git 3.0 makes SHA-256 repositories the default.
+* [agent-context-diff](https://github.com/cosmichackerx/agent-context-diff): Diffs `AGENTS.md`, `CLAUDE.md`, Cursor rules and MCP configs between git refs (new servers, widened permissions, hidden Unicode).
