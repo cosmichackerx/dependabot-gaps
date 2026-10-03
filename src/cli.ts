@@ -22,7 +22,7 @@ function version(): string {
   } catch {
     /* bundled */
   }
-  return '0.2.0';
+  return '0.2.1';
 }
 
 const HELP = `dependabot-gaps [path] [options]
