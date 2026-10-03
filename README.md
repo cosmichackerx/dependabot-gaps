@@ -226,7 +226,7 @@ Exit codes: `0` ok, `1` findings at or above `--fail-on`, `2` usage or read erro
 * Multi-branch setups (`target-branch`) are only used to decide overlaps.
 * Private registries, `ignore`, `allow` and `groups` are not analysed.
 * Reading a git revision from a partial clone fetches blobs one by one and is slow on repositories with thousands of manifests.
-* Tested on Linux, Windows and macOS in CI with a synthetic fixture suite (41 tests) and the corpus above, not against a live Dependabot.
+* Tested on Linux, Windows and macOS in CI with a synthetic fixture suite (53 tests) and the corpus above, not against a live Dependabot.
 
 ## Development
 
