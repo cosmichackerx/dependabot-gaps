@@ -115,6 +115,7 @@ The comment is skipped (with a notice) for pull requests from forks, whose token
 | `unmatched-entry` | warning | An entry's directory (or glob) has no manifest of that ecosystem: Dependabot raises `dependency_file_not_found`. |
 | `overlapping-entries` | error | Two entries for the same ecosystem and `target-branch` cover the same directory. |
 | `directory-glob` | error | `directory: /apps/*` is taken literally; only `directories` expands globs. |
+| `unsupported-version-catalog` | warning | A Gradle version catalog such as `gradle/deps.versions.toml` or `catalog/libs.versions.toml`: the Dependabot docs list only `gradle/libs.versions.toml`, so versions in other catalogs get no update PRs (custom catalogs: [dependabot-core#8079](https://github.com/dependabot/dependabot-core/issues/8079), still open when checked on 2026-10-03). Only reported when the config has a `gradle` entry. |
 | `no-config` | error | Manifests exist but there is no `.github/dependabot.yml`; the suggestion is a complete file. |
 | `invalid-config` / `config-unparseable` | error | Missing `version: 2`, unknown `package-ecosystem`, no `directory`/`directories`, no `schedule.interval` (not required for `multi-ecosystem-group` entries), or invalid YAML. |
 

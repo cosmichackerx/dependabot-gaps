@@ -1,5 +1,5 @@
 import { CONFIG_PATHS, parseConfig } from './config.js';
-import { classifyAll, classifyManifest } from './ecosystems.js';
+import { classifyAll, classifyManifest, isSkipped } from './ecosystems.js';
 import { directoryMatches, entryMatches, excludedBy, globToRegExp, isGlob, normalizeDir } from './glob.js';
 import type { Source } from './source.js';
 import type { Finding, Manifest, Result, UpdateEntry } from './types.js';
@@ -212,6 +212,21 @@ export function analyze(source: Source, opts: Options = {}): Result & { suggesti
         });
       }
     }
+  }
+
+  // ---- Gradle version catalogs Dependabot does not read ----
+  // The docs list only gradle/libs.versions.toml (custom catalogs from settings.gradle are dependabot-core#8079).
+  for (const f of configured.has('gradle') || opts.allEcosystems ? files : []) {
+    if (!/(^|\/)[^/]+\.versions\.toml$/.test(f) || /(^|\/)gradle\/libs\.versions\.toml$/.test(f)) continue;
+    if (isSkipped(f, opts.includeVendored ?? false) || isIgnored(f)) continue;
+    const low = classifyManifest(f.replace(/[^/]*$/, 'build.gradle'))?.lowPriority ?? false;
+    findings.push({
+      rule: 'unsupported-version-catalog',
+      severity: low && !opts.strictPaths ? 'info' : 'warning',
+      file: f,
+      message: `gradle: ${f} is a version catalog Dependabot does not read (only gradle/libs.versions.toml is read), so its versions get no update PRs`,
+      ecosystem: 'gradle',
+    });
   }
 
   const suggestion = suggestionGaps.length ? renderEntries(suggestionGaps) : undefined;

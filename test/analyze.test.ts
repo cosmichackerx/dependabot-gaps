@@ -180,3 +180,16 @@ test('a trailing ** without a slash behaves like * (Ruby Dir.glob) and is explai
   const ok = run({ '.github/dependabot.yml': cfg(entry('npm', ['/**/*'])), 'apps/web/package.json': pkg });
   assert.deepEqual(rules(ok), []);
 });
+
+test('version catalogs other than gradle/libs.versions.toml are flagged when gradle is configured', () => {
+  const files = { 'build.gradle': '', 'gradle/libs.versions.toml': '', 'gradle/deps.versions.toml': '', 'catalog/libs.versions.toml': '', 'examples/app/gradle/x.versions.toml': '', 'node_modules/p/y.versions.toml': '' };
+  const r = run({ '.github/dependabot.yml': cfg(entry('gradle', '/')), ...files });
+  assert.deepEqual(r.findings.map((f) => `${f.rule}:${f.severity}:${f.file}`).sort(), [
+    'unsupported-version-catalog:info:examples/app/gradle/x.versions.toml',
+    'unsupported-version-catalog:warning:catalog/libs.versions.toml',
+    'unsupported-version-catalog:warning:gradle/deps.versions.toml',
+  ]);
+  // no gradle entry at all: a deliberate opt-out, nothing about catalogs
+  const o = run({ '.github/dependabot.yml': cfg(entry('npm', '/')), 'package.json': '{"dependencies":{"a":"1"}}', ...files });
+  assert.ok(!rules(o).some((x) => x.startsWith('unsupported-version-catalog')));
+});
