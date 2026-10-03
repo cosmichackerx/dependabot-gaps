@@ -1,5 +1,9 @@
 # dependabot-gaps
 
+[![CI](https://github.com/cosmichackerx/dependabot-gaps/actions/workflows/ci.yml/badge.svg)](https://github.com/cosmichackerx/dependabot-gaps/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/cosmichackerx/dependabot-gaps?sort=semver)](https://github.com/cosmichackerx/dependabot-gaps/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 **Find what your `.github/dependabot.yml` forgets to update.** `dependabot-gaps` lists the manifests in your repository (monorepo packages, nested `package.json`, `Dockerfile`s, composite actions under `.github/actions/*`, `pyproject.toml`, `Cargo.toml`, `pom.xml`, ...) that **no `updates` entry covers**, entries that point at a directory with nothing to update, overlapping entries, and `directory:` keys with a glob that Dependabot takes literally. Then it prints the entries to add (or appends them with `--fix`).
 
 CLI + GitHub Action. Zero network access, SARIF output for code scanning, Node 20+.
@@ -34,7 +38,7 @@ Add under updates: in .github/dependabot.yml
 
 ```bash
 # needs Node 20+
-git clone --branch v0.1.0 https://github.com/cosmichackerx/dependabot-gaps && cd dependabot-gaps
+git clone --branch v0.2.1 https://github.com/cosmichackerx/dependabot-gaps && cd dependabot-gaps
 npm ci                                  # also compiles the CLI (prepare script)
 node dist/src/cli.js /path/to/your/repo # exit code 1 when something is uncovered
 node dist/src/cli.js /path/to/repo --fix   # append the missing entries to .github/dependabot.yml
@@ -56,7 +60,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: cosmichackerx/dependabot-gaps@v0.2.0
+      - uses: cosmichackerx/dependabot-gaps@v0.2.1
         with:
           fail-on: warning        # error | warning | never
           # ignore: "examples/** third_party/**"
@@ -99,7 +103,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0     # the base branch must be readable
-      - uses: cosmichackerx/dependabot-gaps@v0.2.0
+      - uses: cosmichackerx/dependabot-gaps@v0.2.1
         with:
           comment: "true"      # implies pr-mode: true; use pr-mode: "true" alone for the check without a comment
 ```
