@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1 - 2026-10-03
+
+* New rule `unsupported-version-catalog` (warning): a Gradle version catalog other than `gradle/libs.versions.toml` is not read by Dependabot (docs list only the standard catalog; custom catalogs: dependabot-core#8079). Reported only when the config has a `gradle` entry (or with `--all-ecosystems`); catalogs under test/example paths are `info`.
+
 ## 0.2.0 - 2026-10-03
 
 * **Pull request mode** (`--base <ref>`; Action inputs `pr-mode`, `base`, `comment`; opt-in, so existing workflows keep their full report): only findings the head introduces are reported and counted; optional **sticky PR comment** (`comment: true`, skipped for forks, never fails the job); CI proves exactly one comment after two runs.

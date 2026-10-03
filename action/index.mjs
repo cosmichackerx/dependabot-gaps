@@ -7918,6 +7918,18 @@ ${renderEntries(gaps2)}`;
       }
     }
   }
+  for (const f of configured.has("gradle") || opts.allEcosystems ? files : []) {
+    if (!/(^|\/)[^/]+\.versions\.toml$/.test(f) || /(^|\/)gradle\/libs\.versions\.toml$/.test(f)) continue;
+    if (isSkipped(f, opts.includeVendored ?? false) || isIgnored(f)) continue;
+    const low = classifyManifest(f.replace(/[^/]*$/, "build.gradle"))?.lowPriority ?? false;
+    findings.push({
+      rule: "unsupported-version-catalog",
+      severity: low && !opts.strictPaths ? "info" : "warning",
+      file: f,
+      message: `gradle: ${f} is a version catalog Dependabot does not read (only gradle/libs.versions.toml is read), so its versions get no update PRs`,
+      ecosystem: "gradle"
+    });
+  }
   const suggestion = suggestionGaps.length ? renderEntries(suggestionGaps) : void 0;
   return { configFile, findings: sort(findings), summary, suggestion };
 }
@@ -7993,7 +8005,8 @@ var RULES2 = {
   "unconfigured-ecosystem": { severity: "info", summary: "Manifests of an ecosystem that has no updates entry at all (usually a deliberate opt-out; use --all-ecosystems to treat it as a gap)." },
   "unmatched-entry": { severity: "warning", summary: "An updates entry points at a directory without a manifest of that ecosystem (Dependabot reports a dependency_file_not_found error)." },
   "overlapping-entries": { severity: "error", summary: "Two entries for the same ecosystem and target branch cover the same directory (Dependabot rejects overlapping entries)." },
-  "directory-glob": { severity: "error", summary: "`directory` (singular) does not expand globs; use `directories`." }
+  "directory-glob": { severity: "error", summary: "`directory` (singular) does not expand globs; use `directories`." },
+  "unsupported-version-catalog": { severity: "warning", summary: "A Gradle version catalog (*.versions.toml) outside gradle/libs.versions.toml: Dependabot only reads the standard catalog, so its versions never get update PRs." }
 };
 
 // src/report.ts

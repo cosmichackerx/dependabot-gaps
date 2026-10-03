@@ -8,7 +8,8 @@ export type RuleId =
   | 'unconfigured-ecosystem'
   | 'unmatched-entry'
   | 'overlapping-entries'
-  | 'directory-glob';
+  | 'directory-glob'
+  | 'unsupported-version-catalog';
 
 export const RULES: Record<RuleId, { severity: Severity; summary: string }> = {
   'no-config': { severity: 'error', summary: 'The repository has Dependabot-supported manifests but no .github/dependabot.yml.' },
@@ -19,6 +20,7 @@ export const RULES: Record<RuleId, { severity: Severity; summary: string }> = {
   'unmatched-entry': { severity: 'warning', summary: 'An updates entry points at a directory without a manifest of that ecosystem (Dependabot reports a dependency_file_not_found error).' },
   'overlapping-entries': { severity: 'error', summary: 'Two entries for the same ecosystem and target branch cover the same directory (Dependabot rejects overlapping entries).' },
   'directory-glob': { severity: 'error', summary: '`directory` (singular) does not expand globs; use `directories`.' },
+  'unsupported-version-catalog': { severity: 'warning', summary: 'A Gradle version catalog (*.versions.toml) outside gradle/libs.versions.toml: Dependabot only reads the standard catalog, so its versions never get update PRs.' },
 };
 
 export interface Finding {
