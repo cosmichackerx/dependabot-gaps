@@ -30,6 +30,24 @@ Add under updates: in .github/dependabot.yml
 
 (What that shows: curl's `pip` entry lists `tests`, but the only requirements file is `tests/http/requirements.txt`, so Dependabot has nothing to read at `tests`; and the composite action `pkg-install` is not scanned because `directory: "/"` only covers `.github/workflows` and the root `action.yml`. I have not reported these upstream.)
 
+## At a glance
+
+|  | Lite (try it in a minute) | Full (keep it in CI) |
+|---|---|---|
+| How | clone, `npm ci`, `node dist/src/cli.js /path/to/repo` (see [Install](#install); `--rev HEAD` audits a repository without a checkout) | the [GitHub Action](#install) with [PR mode](#pull-request-mode-only-the-gaps-a-pr-introduces) (only the gaps a PR introduces) and `--fix` to append the missing entries |
+
+### Validation / results
+
+Every number below is from this repository's own tests or scripts (see the linked sections). "Not proven" is as important as "Result".
+
+| What is claimed | Checked against | Size | Result | Not proven |
+|---|---|---|---|---|
+| Directory globs match like Dependabot's | Real Ruby `Dir.glob`, the call `dependabot-core` makes (differential check, committed fixture) | 47 hand-picked patterns; 4 x 5000 random patterns on a 40-directory tree | 47/47 identical; 9 mismatches in 20 000 random patterns (0.045 %), all of the shape `x/**/**/` | One fixed tree; the oracle is Ruby's glob, not Dependabot itself |
+| Uncovered-manifest warnings are real | 238 public repositories (top-starred, 20 languages); an independent Python script re-checked a random sample | 40 random warnings | all 40 held (no compatible entry matches and the manifest exists) | I did not run Dependabot; a flagged manifest may be intentionally unmanaged; workspace handling is modelled only for the listed ecosystems |
+| Rule logic | Unit tests on Linux, Windows, macOS (Node 20, 22, 24) | the `test/` suite | green | - |
+
+**Releases:** 3 releases, v0.1.0 to v0.2.1, all published between 2026-10-02 and 2026-10-03 (days old). See [CHANGELOG.md](CHANGELOG.md) and the [Releases page](https://github.com/cosmichackerx/dependabot-gaps/releases). There is no weekly watcher for this tool; the ecosystem model is checked against the dependabot-core behaviour described in the README.
+
 ## Why
 
 `directory: "/"` is **not recursive**. In a monorepo every package, every Dockerfile folder and every composite action needs a directory in `dependabot.yml`, and nobody notices when the 12th package is added without one: version-update PRs just never come. `directories` globs, `exclude-paths`, workspaces (which Dependabot follows on its own) and the special GitHub Actions rules make it hard to eyeball. This tool applies those rules mechanically.
