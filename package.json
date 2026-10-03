@@ -1,6 +1,6 @@
 {
   "name": "dependabot-gaps",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Find manifests and GitHub Actions folders that your .github/dependabot.yml does not cover, entries that point at nothing, and overlapping entries. Understands directories globs, exclude-paths and workspaces; prints the entries to add.",
   "keywords": [
     "dependabot",
